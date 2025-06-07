@@ -2,3 +2,7 @@ fastapi
 uvicorn
 ultralytics
 pillow
+pandas
+scikit-learn
+tensorflow
+python-multipart
