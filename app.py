@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile
 from ultralytics import YOLO
 from PIL import Image
 import io
-
+import base64
 app = FastAPI()
 
 # Load the trained YOLOv8 model
@@ -74,36 +74,35 @@ average_weights = {
 
 @app.post("/predict/")
 async def predict(file: UploadFile = File(...)):
-    # Read the uploaded image
+    # ... your existing code ...
     image_bytes = await file.read()
     image = Image.open(io.BytesIO(image_bytes))
-
-    # Run inference with a low confidence threshold
-    results = model(image, conf=0.02)  # Set confidence threshold to 0.02
+    results = model(image, conf=0.02)
 
     # Parse results
     detections = []
-    total_weight = 0  # Initialize total weight
-
+    total_weight = 0
     for box in results[0].boxes:
-        class_name = model.names[int(box.cls)]  # Class name
-        confidence = float(box.conf)           # Confidence score
-        bbox = box.xyxy.tolist()               # Bounding box coordinates
-
-        # Add detection to the list
+        class_name = model.names[int(box.cls)]
+        confidence = float(box.conf)
+        bbox = box.xyxy.tolist()
         detections.append({
             "class": class_name,
             "confidence": confidence,
             "bbox": bbox
         })
-
-        # Add the weight of the detected object (if class is in average_weights)
         if class_name in average_weights:
             total_weight += average_weights[class_name]
-        else:
-            print(f"Warning: No weight defined for class '{class_name}'")
+
+    # Save annotated image to a buffer
+    buf = io.BytesIO()
+    results[0].save(buf)
+    buf.seek(0)
+    annotated_image_bytes = buf.read()
+    annotated_image_base64 = base64.b64encode(annotated_image_bytes).decode('utf-8')
 
     return {
         "detections": detections,
-        "total_weight": total_weight  # Return the total weight in kilograms
+        "total_weight": total_weight,
+        "annotated_image": annotated_image_base64
     }
